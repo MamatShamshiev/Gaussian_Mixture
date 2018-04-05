@@ -10,7 +10,7 @@ class MixtureModel:
     The model is based on Expectation–Maximization (EM) algorithm.
     
     """
-    def __init__(self, n_components, diag=False, min_deviation=5, adaptive=False, num_objects=250):
+    def __init__(self, n_components, diag=False, min_deviation=5):
         """
         Parameters:
         ---------------
