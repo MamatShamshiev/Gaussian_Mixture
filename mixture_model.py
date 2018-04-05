@@ -23,17 +23,10 @@ class MixtureModel:
         min_deviation: int
             The lower bound of deviations (used not to get a degenerate distribution)
         
-        adaptive: bool
-            If adaptive is True, the adaptive one-dimensional gaussian is used
-            
-        num_objects: int
-            Amount of objects to estimate means and covariance matrixes in case of adaptive model
         """
         self.n_components = n_components  
         self.diag = diag
         self.min_deviation = min_deviation
-        self.adaptive = adaptive
-        self.num_objects = num_objects
         
     def _E_step(self, data):
         """
@@ -110,22 +103,11 @@ class MixtureModel:
         If True then return list of likelihoods
         """
 
+        N, d = data.shape
+        self.q_z = np.zeros((N, self.n_components))
         self.tol = tol
         np.random.seed(seed)
         
-        log_likelihood_list = []
-        log_prev = np.inf
-        
-        if self.adaptive is True:
-            data_ad = data[:self.num_objects]
-            N, d = data_ad.shape
-            self.q_z = np.zeros((N, self.n_components))
-        else:
-            data_ad = data
-            N, d = data_ad.shape
-            self.q_z = np.zeros((N, self.n_components))
-        
-
         if w_init is None:
             self.w = np.ones(self.n_components) * (1 / self.n_components)
         else:
@@ -142,29 +124,25 @@ class MixtureModel:
         else:
             self.Sigma = s_init
         
+        log_likelihood_list = []
+        log_prev = np.inf
+        
         for i in range(max_iter):
             # Perform E-step 
-            self._E_step(data_ad)
+            self._E_step(data)
             
             # Compute loglikelihood
-            log_likelihood_list.append(self.compute_log_likelihood(data_ad))
+            log_likelihood_list.append(self.compute_log_likelihood(data))
             if (abs(log_likelihood_list[-1] - log_prev) < tol):
                 break
             log_prev = log_likelihood_list[-1]
-            
             # Perform M-step
-            self._M_step(data_ad)
+            self._M_step(data)
         
-        self._E_step(data_ad)
-        log_likelihood_list.append(self.compute_log_likelihood(data_ad))
-        
-        if self.adaptive is True:
-            k = 3
-            coef = 0.05
-            for sample in data[self.num_objects:]:
-                if (abs(sample - self.Mean[0]) < k * np.sqrt(self.Sigma[0][0][0])):
-                    self.Mean[0][0] = coef * sample + (1 - coef) * self.Mean[0][0]
-                    self.Sigma[0][0][0] = coef * (sample - self.Mean[0][0]) ** 2 + (1 - coef) * self.Sigma[0][0][0]
+        # Perform E-step
+        self._E_step(data)
+        # Compute loglikelihood
+        log_likelihood_list.append(self.compute_log_likelihood(data))
         
         if trace:
             return self.w, self.Mean, self.Sigma, log_likelihood_list
